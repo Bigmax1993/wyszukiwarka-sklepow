@@ -2,6 +2,7 @@ import argparse
 import csv
 import json
 import logging
+import math
 import os
 import re
 import time
@@ -22,7 +23,8 @@ STORE_CHAINS = ["REWE", "NETTO", "ALDI", "EDEKA", "PENNY","KAUFLAND"]
 GOOGLE_MAX_REQUESTS = 300
 GEMINI_MAX_REQUESTS = 300
 MIN_CITY_OUTER_RADIUS_METERS = 100000
-GERMANY_ADDRESS_MARKERS = ("germany", "deutschland", ", de")
+SEARCH_OFFSET_KM = 50.0
+CHAIN_QUERY_VARIANTS = ("{chain}", "{chain} supermarket")
 REPORT_RECIPIENT_EMAIL = "svinchak1993@gmail.com"
 
 logger = logging.getLogger(__name__)
@@ -114,9 +116,22 @@ def get_stores(
     return all_results
 
 
-def is_store_in_germany(store: Dict[str, Any]) -> bool:
-    formatted_address = (store.get("formatted_address") or "").strip().lower()
-    return any(marker in formatted_address for marker in GERMANY_ADDRESS_MARKERS)
+def build_search_centers(lat: float, lng: float) -> List[tuple[float, float]]:
+    # Cross-shaped search grid: city center + 50km in each cardinal direction.
+    lat_delta = SEARCH_OFFSET_KM / 111.0
+    lat_cos = max(0.2, abs(math.cos(math.radians(lat))))
+    lng_delta = SEARCH_OFFSET_KM / (111.0 * lat_cos)
+    return [
+        (lat, lng),
+        (lat + lat_delta, lng),
+        (lat - lat_delta, lng),
+        (lat, lng + lng_delta),
+        (lat, lng - lng_delta),
+    ]
+
+
+def build_query_variants(chain: str) -> List[str]:
+    return [template.format(chain=chain) for template in CHAIN_QUERY_VARIANTS]
 
 
 def enforce_allowed_characters(text: str) -> str:
@@ -226,44 +241,130 @@ def process_and_export(
     radius: int,
     output_file: str,
     delay_seconds: float,
+    no_ai: bool = False,
 ) -> None:
+    started_at = time.time()
     google_api_key = get_required_env("GOOGLE_API_KEY")
     gemini_api_key = get_required_env("GEMINI_API_KEY")
     openai_api_key = get_openai_api_key()
 
     results: Dict[str, Dict[str, Any]] = {}
+    raw_google_results: List[Dict[str, Any]] = []
+    centers = build_search_centers(lat, lng)
 
     for chain in STORE_CHAINS:
         logger.info("Pobieram sklepy: %s", chain)
-        stores = get_stores(chain, lat, lng, google_api_key=google_api_key, radius=radius)
-        stores = [store for store in stores if is_store_in_germany(store)]
+        chain_stores: Dict[str, Dict[str, Any]] = {}
 
-        for store in stores:
+        for query_text in build_query_variants(chain):
+            for center_lat, center_lng in centers:
+                stores = get_stores(
+                    query_text,
+                    center_lat,
+                    center_lng,
+                    google_api_key=google_api_key,
+                    radius=radius,
+                )
+                logger.info(
+                    "Google zwrocilo %d rekordow dla %s (query='%s', center=%.4f,%.4f)",
+                    len(stores),
+                    chain,
+                    query_text,
+                    center_lat,
+                    center_lng,
+                )
+                for store in stores:
+                    raw_google_results.append(
+                        {
+                            "chain": chain,
+                            "query": query_text,
+                            "center_lat": center_lat,
+                            "center_lng": center_lng,
+                            "store": store,
+                        }
+                    )
+                    place_id = store.get("place_id")
+                    if not place_id:
+                        continue
+                    if place_id not in chain_stores:
+                        chain_stores[place_id] = {
+                            "store": store,
+                            "source_query": query_text,
+                            "source_center_lat": center_lat,
+                            "source_center_lng": center_lng,
+                        }
+
+        logger.info(
+            "Po deduplikacji place_id dla %s pozostalo %d rekordow",
+            chain,
+            len(chain_stores),
+        )
+        gemini_limit_reached = False
+
+        for entry in chain_stores.values():
+            store = entry["store"]
             place_id = store.get("place_id")
             if not place_id:
                 continue
 
             full_address = store.get("formatted_address", "")
-            contractor_info = get_contractor_info(full_address, gemini_api_key=gemini_api_key)
-            time.sleep(delay_seconds)
+            if no_ai:
+                contractor_info = {
+                    "contractor_name": None,
+                    "confidence": 0.0,
+                    "sources": [],
+                    "reasoning": "Pominieto przez parametr --no-ai",
+                }
+            elif gemini_limit_reached:
+                contractor_info = {
+                    "contractor_name": None,
+                    "confidence": 0.0,
+                    "sources": [],
+                    "reasoning": "Pominieto po osiagnieciu limitu Gemini API",
+                }
+            else:
+                try:
+                    contractor_info = get_contractor_info(
+                        full_address, gemini_api_key=gemini_api_key
+                    )
+                    time.sleep(delay_seconds)
+                except ApiLimitExceeded:
+                    gemini_limit_reached = True
+                    logger.warning(
+                        "Osiagnieto limit Gemini API - pozostale rekordy zapisywane bez contractor info"
+                    )
+                    contractor_info = {
+                        "contractor_name": None,
+                        "confidence": 0.0,
+                        "sources": [],
+                        "reasoning": "Pominieto po osiagnieciu limitu Gemini API",
+                    }
 
-            cleaned_name = remove_special_chars_with_openai(
-                store.get("name", ""), openai_api_key
-            )
-            cleaned_contractor_name = remove_special_chars_with_openai(
-                str(contractor_info.get("contractor_name", "")),
-                openai_api_key,
-            )
-            cleaned_reasoning = remove_special_chars_with_openai(
-                contractor_info.get("reasoning", ""),
-                openai_api_key,
-            )
+            if no_ai:
+                cleaned_name = store.get("name", "")
+                cleaned_contractor_name = str(contractor_info.get("contractor_name", ""))
+                cleaned_reasoning = contractor_info.get("reasoning", "")
+            else:
+                cleaned_name = remove_special_chars_with_openai(
+                    store.get("name", ""), openai_api_key
+                )
+                cleaned_contractor_name = remove_special_chars_with_openai(
+                    str(contractor_info.get("contractor_name", "")),
+                    openai_api_key,
+                )
+                cleaned_reasoning = remove_special_chars_with_openai(
+                    contractor_info.get("reasoning", ""),
+                    openai_api_key,
+                )
 
             results[place_id] = {
                 "chain": chain,
                 "name": cleaned_name,
                 "address": full_address,
                 "status": store.get("business_status", "UNKNOWN"),
+                "source_query": entry["source_query"],
+                "source_center_lat": f"{entry['source_center_lat']:.6f}",
+                "source_center_lng": f"{entry['source_center_lng']:.6f}",
                 "contractor_name": cleaned_contractor_name,
                 "confidence": contractor_info.get("confidence"),
                 "sources": json.dumps(contractor_info.get("sources", []), ensure_ascii=False),
@@ -272,7 +373,7 @@ def process_and_export(
             }
 
     with open(output_file, "w", newline="", encoding="utf-8") as file:
-        writer = csv.writer(file)
+        writer = csv.writer(file, delimiter=";")
         writer.writerow(
             [
                 "place_id",
@@ -280,6 +381,9 @@ def process_and_export(
                 "name",
                 "address",
                 "status",
+                "source_query",
+                "source_center_lat",
+                "source_center_lng",
                 "contractor_name",
                 "confidence",
                 "sources",
@@ -296,6 +400,9 @@ def process_and_export(
                     row["name"],
                     row["address"],
                     row["status"],
+                    row["source_query"],
+                    row["source_center_lat"],
+                    row["source_center_lng"],
                     row["contractor_name"],
                     row["confidence"],
                     row["sources"],
@@ -308,8 +415,26 @@ def process_and_export(
     with open(json_output_file, "w", encoding="utf-8") as file:
         json.dump(results, file, ensure_ascii=False, indent=2)
 
+    raw_output_file = f"{os.path.splitext(output_file)[0]}_google_raw.json"
+    with open(raw_output_file, "w", encoding="utf-8") as file:
+        json.dump(raw_google_results, file, ensure_ascii=False, indent=2)
+
+    metrics_output_file = f"{os.path.splitext(output_file)[0]}_metrics.json"
+    metrics_payload = {
+        "stores_saved": len(results),
+        "google_requests_used": google_requests_count,
+        "google_requests_limit": GOOGLE_MAX_REQUESTS,
+        "gemini_requests_used": gemini_requests_count,
+        "gemini_requests_limit": GEMINI_MAX_REQUESTS,
+        "duration_seconds": round(time.time() - started_at, 2),
+    }
+    with open(metrics_output_file, "w", encoding="utf-8") as file:
+        json.dump(metrics_payload, file, ensure_ascii=False, indent=2)
+
     logger.info("Zapisano plik CSV: %s", output_file)
     logger.info("Zapisano backup JSON: %s", json_output_file)
+    logger.info("Zapisano surowe wyniki Google: %s", raw_output_file)
+    logger.info("Zapisano metryki runa: %s", metrics_output_file)
     logger.info("Liczba zapisanych sklepow: %d", len(results))
     logger.info(
         "Wykorzystanie Google API: %d/%d",
@@ -321,7 +446,10 @@ def process_and_export(
         gemini_requests_count,
         GEMINI_MAX_REQUESTS,
     )
-    send_csv_report_via_email(output_file, len(results))
+    try:
+        send_csv_report_via_email(output_file, len(results))
+    except Exception as exc:
+        logger.warning("Wysylka email nie powiodla sie: %s", exc)
 
 
 def send_csv_report_via_email(csv_file_path: str, records_count: int) -> None:
@@ -378,6 +506,11 @@ def parse_args() -> argparse.Namespace:
         default=1.0,
         help="Opoznienie miedzy zapytaniami Gemini w sekundach",
     )
+    parser.add_argument(
+        "--no-ai",
+        action="store_true",
+        help="Pomin wywolania Gemini i OpenAI, zapisujac tylko dane z Google",
+    )
     parser.epilog = (
         "Skrypt wymusza minimalny promien 100000 m, aby objac takze obszar "
         "do 100 km od duzego miasta."
@@ -397,4 +530,5 @@ if __name__ == "__main__":
         radius=args.radius,
         output_file=args.output,
         delay_seconds=args.delay,
+        no_ai=args.no_ai,
     )

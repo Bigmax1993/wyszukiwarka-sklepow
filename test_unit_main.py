@@ -78,3 +78,14 @@ def test_safe_request_raises_on_gemini_limit(monkeypatch):
 
     with pytest.raises(main.ApiLimitExceeded, match="Przekroczono limit Gemini API"):
         main.safe_request("POST", main.GEMINI_URL, json={})
+
+
+def test_build_search_centers_returns_five_points():
+    centers = main.build_search_centers(52.52, 13.405)
+    assert len(centers) == 5
+    assert centers[0] == (52.52, 13.405)
+
+
+def test_build_query_variants_includes_chain_name():
+    variants = main.build_query_variants("REWE")
+    assert variants == ["REWE", "REWE supermarket"]

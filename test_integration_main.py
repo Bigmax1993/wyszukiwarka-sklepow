@@ -55,12 +55,15 @@ def test_process_and_export_writes_all_rows_with_status(monkeypatch, tmp_path):
     )
 
     with output_file.open("r", encoding="utf-8", newline="") as file:
-        rows = list(csv.DictReader(file))
+        rows = list(csv.DictReader(file, delimiter=";"))
 
     assert len(rows) == 2
     assert {row["place_id"] for row in rows} == {"p1", "p2"}
     rows_by_id = {row["place_id"]: row for row in rows}
     assert rows_by_id["p1"]["status"] == "CLOSED_TEMPORARILY"
     assert rows_by_id["p2"]["status"] == "OPERATIONAL"
+    assert rows_by_id["p1"]["source_query"] == "REWE"
+    assert rows_by_id["p1"]["source_center_lat"]
+    assert rows_by_id["p1"]["source_center_lng"]
     assert rows_by_id["p1"]["contractor_name"] == "Firma X"
     assert json.loads(rows_by_id["p1"]["sources"]) == ["https://example.org/src"]

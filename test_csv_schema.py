@@ -9,6 +9,9 @@ EXPECTED_HEADERS = [
     "name",
     "address",
     "status",
+    "source_query",
+    "source_center_lat",
+    "source_center_lng",
     "contractor_name",
     "confidence",
     "sources",
@@ -48,7 +51,7 @@ def test_csv_headers_are_stable(monkeypatch, tmp_path):
     main.process_and_export(52.52, 13.405, 30000, str(output_file), 0)
 
     with output_file.open("r", encoding="utf-8", newline="") as file:
-        reader = csv.reader(file)
+        reader = csv.reader(file, delimiter=";")
         first_row = next(reader)
 
     assert first_row == EXPECTED_HEADERS

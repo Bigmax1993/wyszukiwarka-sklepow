@@ -14,6 +14,7 @@ def test_parse_args_defaults(monkeypatch):
     assert args.radius == 30000
     assert args.output == "closed_stores_with_contractors.csv"
     assert args.delay == 1.0
+    assert args.no_ai is False
 
 
 def test_parse_args_custom_values(monkeypatch):
@@ -32,6 +33,7 @@ def test_parse_args_custom_values(monkeypatch):
             "my.csv",
             "--delay",
             "0.25",
+            "--no-ai",
         ],
     )
     args = main.parse_args()
@@ -41,6 +43,7 @@ def test_parse_args_custom_values(monkeypatch):
     assert args.radius == 15000
     assert args.output == "my.csv"
     assert args.delay == 0.25
+    assert args.no_ai is True
 
 
 def test_parse_args_invalid_radius_type(monkeypatch):

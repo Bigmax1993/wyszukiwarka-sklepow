@@ -43,7 +43,7 @@ def test_duplicate_place_id_keeps_single_row(monkeypatch, tmp_path):
     main.process_and_export(52.52, 13.405, 30000, str(output_file), 0)
 
     with output_file.open("r", encoding="utf-8", newline="") as file:
-        rows = list(csv.DictReader(file))
+        rows = list(csv.DictReader(file, delimiter=";"))
 
     assert len(rows) == 1
     assert rows[0]["place_id"] == "dup-1"
