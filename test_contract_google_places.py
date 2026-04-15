@@ -25,7 +25,7 @@ def test_process_and_export_skips_rows_without_place_id(monkeypatch, tmp_path):
         lambda *args, **kwargs: [
             {
                 "name": "No Id Store",
-                "formatted_address": "Adres 1",
+                "formatted_address": "Munich, Germany",
                 "business_status": "CLOSED_TEMPORARILY",
             }
         ],
@@ -60,7 +60,7 @@ def test_process_and_export_skips_when_status_missing(monkeypatch, tmp_path):
             {
                 "place_id": "x1",
                 "name": "No Status Store",
-                "formatted_address": "Adres 2",
+                "formatted_address": "Munich, Germany",
             }
         ],
     )

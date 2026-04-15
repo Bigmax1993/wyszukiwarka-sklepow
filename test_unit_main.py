@@ -59,3 +59,22 @@ def test_get_contractor_info_returns_fallback_on_invalid_json(monkeypatch):
     assert result["confidence"] == 0.0
     assert result["sources"] == []
     assert "Brak parsowalnej odpowiedzi Gemini" in result["reasoning"]
+
+
+def test_enforce_allowed_characters_removes_control_chars():
+    text = "Line1\x00\x1f\nLine2\tOK"
+    assert main.enforce_allowed_characters(text) == "Line1 Line2 OK"
+
+
+def test_safe_request_raises_on_google_limit(monkeypatch):
+    main.google_requests_count = main.GOOGLE_MAX_REQUESTS
+
+    with pytest.raises(main.ApiLimitExceeded, match="Przekroczono limit Google API"):
+        main.safe_request("GET", main.PLACES_TEXTSEARCH_URL, params={"key": "x"})
+
+
+def test_safe_request_raises_on_gemini_limit(monkeypatch):
+    main.gemini_requests_count = main.GEMINI_MAX_REQUESTS
+
+    with pytest.raises(main.ApiLimitExceeded, match="Przekroczono limit Gemini API"):
+        main.safe_request("POST", main.GEMINI_URL, json={})

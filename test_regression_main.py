@@ -40,9 +40,10 @@ def test_get_stores_handles_pagination_and_merges_all_results(monkeypatch):
 
     assert [item["place_id"] for item in results] == ["one", "two", "three"]
     assert recorded_params[0] == {
-        "query": "REWE",
+        "query": "REWE in Germany",
         "location": "52.52,13.405",
         "radius": 5000,
+        "region": "de",
         "key": "google-key",
     }
     assert recorded_params[1] == {"pagetoken": "token-123", "key": "google-key"}
@@ -60,19 +61,19 @@ def test_regression_filter_keeps_only_closed_temporarily(monkeypatch, tmp_path):
             {
                 "place_id": "temp-1",
                 "name": "A",
-                "formatted_address": "Adres A",
+                "formatted_address": "Hamburg, Germany",
                 "business_status": "CLOSED_TEMPORARILY",
             },
             {
                 "place_id": "perm-1",
                 "name": "B",
-                "formatted_address": "Adres B",
+                "formatted_address": "Hamburg, Germany",
                 "business_status": "CLOSED_PERMANENTLY",
             },
             {
                 "place_id": "oper-1",
                 "name": "C",
-                "formatted_address": "Adres C",
+                "formatted_address": "Hamburg, Germany",
                 "business_status": "OPERATIONAL",
             },
         ],

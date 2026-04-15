@@ -28,7 +28,7 @@ def test_csv_headers_are_stable(monkeypatch, tmp_path):
             {
                 "place_id": "h1",
                 "name": "Header Test Store",
-                "formatted_address": "Adres H",
+                "formatted_address": "Cologne, Germany",
                 "business_status": "CLOSED_TEMPORARILY",
             }
         ],

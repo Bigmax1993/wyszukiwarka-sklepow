@@ -14,7 +14,7 @@ def test_duplicate_place_id_keeps_single_row(monkeypatch, tmp_path):
                 {
                     "place_id": "dup-1",
                     "name": "Store REWE",
-                    "formatted_address": "Adres 1",
+                    "formatted_address": "Frankfurt, Germany",
                     "business_status": "CLOSED_TEMPORARILY",
                 }
             ]
@@ -22,7 +22,7 @@ def test_duplicate_place_id_keeps_single_row(monkeypatch, tmp_path):
             {
                 "place_id": "dup-1",
                 "name": "Store NETTO",
-                "formatted_address": "Adres 1",
+                "formatted_address": "Frankfurt, Germany",
                 "business_status": "CLOSED_TEMPORARILY",
             }
         ]

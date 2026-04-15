@@ -10,13 +10,13 @@ def test_process_and_export_writes_only_temporarily_closed_rows(monkeypatch, tmp
             {
                 "place_id": "p1",
                 "name": "REWE A",
-                "formatted_address": "Adres 1",
+                "formatted_address": "Berlin, Germany",
                 "business_status": "CLOSED_TEMPORARILY",
             },
             {
                 "place_id": "p2",
                 "name": "REWE B",
-                "formatted_address": "Adres 2",
+                "formatted_address": "Berlin, Germany",
                 "business_status": "OPERATIONAL",
             },
         ],
