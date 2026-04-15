@@ -14,7 +14,7 @@ GEMINI_URL = (
     "gemini-1.5-pro:generateContent"
 )
 
-STORE_CHAINS = ["REWE", "NETTO", "ALDI", "EDEKA", "PENNY"]
+STORE_CHAINS = ["REWE", "NETTO", "ALDI", "EDEKA", "PENNY","KAUFLAND"]
 TARGET_STATUS = "CLOSED_TEMPORARILY"
 
 
@@ -43,7 +43,7 @@ def get_stores(
 ) -> List[Dict[str, Any]]:
     params: Dict[str, Any] = {
         "query": chain,
-        "location": f"{lat},{lng}",
+        "location": f"DE",
         "radius": radius,
         "key": google_api_key,
     }
