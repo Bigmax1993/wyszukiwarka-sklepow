@@ -330,7 +330,9 @@ def process_and_export(
 
 
 def send_csv_report_via_email(csv_file_path: str, records_count: int) -> None:
-    sender_email = os.getenv("SMTP_SENDER_EMAIL", REPORT_RECIPIENT_EMAIL)
+    sender_email = (os.getenv("SMTP_SENDER_EMAIL") or "").strip()
+    if not sender_email or "@" not in sender_email or sender_email.startswith("@"):
+        sender_email = REPORT_RECIPIENT_EMAIL
     sender_app_password = get_required_env("SMTP_SENDER_APP_PASSWORD")
     smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com")
     smtp_port = int(os.getenv("SMTP_PORT", "587"))
