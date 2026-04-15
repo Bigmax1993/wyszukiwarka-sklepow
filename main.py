@@ -246,14 +246,13 @@ def process_and_export(
             if not place_id:
                 continue
 
-            address = store.get("formatted_address", "")
-            contractor_info = get_contractor_info(address, gemini_api_key=gemini_api_key)
+            full_address = store.get("formatted_address", "")
+            contractor_info = get_contractor_info(full_address, gemini_api_key=gemini_api_key)
             time.sleep(delay_seconds)
 
             cleaned_name = remove_special_chars_with_openai(
                 store.get("name", ""), openai_api_key
             )
-            cleaned_address = remove_special_chars_with_openai(address, openai_api_key)
             cleaned_contractor_name = remove_special_chars_with_openai(
                 str(contractor_info.get("contractor_name", "")),
                 openai_api_key,
@@ -266,7 +265,7 @@ def process_and_export(
             results[place_id] = {
                 "chain": chain,
                 "name": cleaned_name,
-                "address": cleaned_address,
+                "address": full_address,
                 "business_status": business_status,
                 "contractor_name": cleaned_contractor_name,
                 "confidence": contractor_info.get("confidence"),
