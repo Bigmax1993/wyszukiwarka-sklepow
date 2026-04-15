@@ -42,7 +42,7 @@ def test_get_stores_handles_pagination_and_merges_all_results(monkeypatch):
     assert recorded_params[0] == {
         "query": "REWE in Germany",
         "location": "52.52,13.405",
-        "radius": 100000,
+        "radius": 50000,
         "region": "de",
         "key": "google-key",
     }

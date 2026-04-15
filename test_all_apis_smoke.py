@@ -30,7 +30,7 @@ def test_google_places_api_smoke(monkeypatch):
     assert captured["url"] == main.PLACES_TEXTSEARCH_URL
     assert captured["params"]["key"] == "google-key"
     assert captured["params"]["region"] == "de"
-    assert captured["params"]["radius"] == 100000
+    assert captured["params"]["radius"] == 50000
 
 
 def test_gemini_api_smoke(monkeypatch):

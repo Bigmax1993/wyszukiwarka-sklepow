@@ -23,6 +23,7 @@ STORE_CHAINS = ["REWE", "NETTO", "ALDI", "EDEKA", "PENNY","KAUFLAND"]
 GOOGLE_MAX_REQUESTS = 300
 GEMINI_MAX_REQUESTS = 300
 MIN_CITY_OUTER_RADIUS_METERS = 100000
+GOOGLE_TEXTSEARCH_MAX_RADIUS_METERS = 50000
 SEARCH_OFFSET_KM = 50.0
 CHAIN_QUERY_VARIANTS = ("{chain}", "{chain} supermarket")
 REPORT_RECIPIENT_EMAIL = "svinchak1993@gmail.com"
@@ -89,7 +90,14 @@ def safe_request(method: str, url: str, **kwargs: Any) -> requests.Response:
 def get_stores(
     chain: str, lat: float, lng: float, google_api_key: str, radius: int = 30000
 ) -> List[Dict[str, Any]]:
-    effective_radius = max(radius, MIN_CITY_OUTER_RADIUS_METERS)
+    requested_radius = max(radius, MIN_CITY_OUTER_RADIUS_METERS)
+    effective_radius = min(requested_radius, GOOGLE_TEXTSEARCH_MAX_RADIUS_METERS)
+    if effective_radius != requested_radius:
+        logger.info(
+            "Radius %d przekracza limit Text Search, ustawiono %d",
+            requested_radius,
+            effective_radius,
+        )
     params: Dict[str, Any] = {
         "query": f"{chain} in Germany",
         "location": f"{lat},{lng}",
@@ -103,6 +111,15 @@ def get_stores(
     while True:
         response = safe_request("GET", PLACES_TEXTSEARCH_URL, params=params)
         data = response.json()
+        api_status = data.get("status", "UNKNOWN")
+        if api_status not in {"OK", "ZERO_RESULTS"}:
+            logger.warning(
+                "Google Places status=%s, error_message=%s, query=%s, location=%s",
+                api_status,
+                data.get("error_message", ""),
+                params.get("query", ""),
+                params.get("location", ""),
+            )
         all_results.extend(data.get("results", []))
 
         next_page_token = data.get("next_page_token")
