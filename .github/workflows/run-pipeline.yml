@@ -1,0 +1,67 @@
+name: Run Stores Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      lat:
+        description: "Latitude"
+        required: false
+        default: "52.5200"
+      lng:
+        description: "Longitude"
+        required: false
+        default: "13.4050"
+      radius:
+        description: "Radius in meters"
+        required: false
+        default: "30000"
+      delay:
+        description: "Delay between Gemini calls in seconds"
+        required: false
+        default: "1.0"
+      output:
+        description: "Output CSV filename"
+        required: false
+        default: "closed_stores_with_contractors.csv"
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pipeline
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPEN_AI_API: ${{ secrets.OPEN_AI_API }}
+          SMTP_SENDER_EMAIL: ${{ secrets.SMTP_SENDER_EMAIL }}
+          SMTP_SENDER_APP_PASSWORD: ${{ secrets.SMTP_SENDER_APP_PASSWORD }}
+          SMTP_HOST: smtp.gmail.com
+          SMTP_PORT: "587"
+        run: >
+          python main.py
+          --lat "${{ inputs.lat }}"
+          --lng "${{ inputs.lng }}"
+          --radius "${{ inputs.radius }}"
+          --output "${{ inputs.output }}"
+          --delay "${{ inputs.delay }}"
+
+      - name: Upload outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: stores-pipeline-output
+          path: |
+            *.csv
+            *.json
+          if-no-files-found: error
