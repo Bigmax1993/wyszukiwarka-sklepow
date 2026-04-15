@@ -22,6 +22,7 @@ STORE_CHAINS = ["REWE", "NETTO", "ALDI", "EDEKA", "PENNY","KAUFLAND"]
 TARGET_STATUS = "CLOSED_TEMPORARILY"
 GOOGLE_MAX_REQUESTS = 300
 GEMINI_MAX_REQUESTS = 300
+MIN_CITY_OUTER_RADIUS_METERS = 100000
 GERMANY_ADDRESS_MARKERS = ("germany", "deutschland", ", de")
 REPORT_RECIPIENT_EMAIL = "svinchak1993@gmail.com"
 
@@ -87,10 +88,11 @@ def safe_request(method: str, url: str, **kwargs: Any) -> requests.Response:
 def get_stores(
     chain: str, lat: float, lng: float, google_api_key: str, radius: int = 30000
 ) -> List[Dict[str, Any]]:
+    effective_radius = max(radius, MIN_CITY_OUTER_RADIUS_METERS)
     params: Dict[str, Any] = {
         "query": f"{chain} in Germany",
         "location": f"{lat},{lng}",
-        "radius": radius,
+        "radius": effective_radius,
         "region": "de",
         "key": google_api_key,
     }
@@ -378,6 +380,10 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=1.0,
         help="Opoznienie miedzy zapytaniami Gemini w sekundach",
+    )
+    parser.epilog = (
+        "Skrypt wymusza minimalny promien 100000 m, aby objac takze obszar "
+        "do 100 km od duzego miasta."
     )
     return parser.parse_args()
 
