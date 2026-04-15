@@ -19,7 +19,6 @@ GEMINI_URL = (
 OPENAI_URL = "https://api.openai.com/v1/chat/completions"
 
 STORE_CHAINS = ["REWE", "NETTO", "ALDI", "EDEKA", "PENNY","KAUFLAND"]
-TARGET_STATUS = "CLOSED_TEMPORARILY"
 GOOGLE_MAX_REQUESTS = 300
 GEMINI_MAX_REQUESTS = 300
 MIN_CITY_OUTER_RADIUS_METERS = 100000
@@ -240,10 +239,6 @@ def process_and_export(
         stores = [store for store in stores if is_store_in_germany(store)]
 
         for store in stores:
-            business_status = store.get("business_status", "")
-            if business_status != TARGET_STATUS:
-                continue
-
             place_id = store.get("place_id")
             if not place_id:
                 continue
@@ -268,7 +263,7 @@ def process_and_export(
                 "chain": chain,
                 "name": cleaned_name,
                 "address": full_address,
-                "business_status": business_status,
+                "status": store.get("business_status", "UNKNOWN"),
                 "contractor_name": cleaned_contractor_name,
                 "confidence": contractor_info.get("confidence"),
                 "sources": json.dumps(contractor_info.get("sources", []), ensure_ascii=False),
@@ -284,7 +279,7 @@ def process_and_export(
                 "chain",
                 "name",
                 "address",
-                "business_status",
+                "status",
                 "contractor_name",
                 "confidence",
                 "sources",
@@ -300,7 +295,7 @@ def process_and_export(
                     row["chain"],
                     row["name"],
                     row["address"],
-                    row["business_status"],
+                    row["status"],
                     row["contractor_name"],
                     row["confidence"],
                     row["sources"],
@@ -315,7 +310,7 @@ def process_and_export(
 
     logger.info("Zapisano plik CSV: %s", output_file)
     logger.info("Zapisano backup JSON: %s", json_output_file)
-    logger.info("Liczba sklepow o statusie %s: %d", TARGET_STATUS, len(results))
+    logger.info("Liczba zapisanych sklepow: %d", len(results))
     logger.info(
         "Wykorzystanie Google API: %d/%d",
         google_requests_count,
@@ -364,8 +359,8 @@ def send_csv_report_via_email(csv_file_path: str, records_count: int) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Pobiera sklepy z Google Places, filtruje tylko CLOSED_TEMPORARILY i "
-            "uzupelnia potencjalnego wykonawce przez Gemini."
+            "Pobiera sklepy z Google Places i uzupelnia potencjalnego "
+            "wykonawce przez Gemini."
         )
     )
     parser.add_argument("--lat", type=float, default=52.5200, help="Szerokosc geograficzna")
