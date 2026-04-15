@@ -42,7 +42,7 @@ jobs:
 
       - name: Run pipeline
         env:
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPEN_AI_API: ${{ secrets.OPEN_AI_API }}
           SMTP_SENDER_EMAIL: ${{ secrets.SMTP_SENDER_EMAIL }}
