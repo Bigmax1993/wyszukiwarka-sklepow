@@ -8,7 +8,7 @@ EXPECTED_HEADERS = [
     "chain",
     "name",
     "address",
-    "business_status",
+    "status",
     "contractor_name",
     "confidence",
     "sources",

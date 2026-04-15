@@ -42,7 +42,7 @@ def test_get_stores_handles_pagination_and_merges_all_results(monkeypatch):
     assert recorded_params[0] == {
         "query": "REWE in Germany",
         "location": "52.52,13.405",
-        "radius": 5000,
+        "radius": 100000,
         "region": "de",
         "key": "google-key",
     }
@@ -50,7 +50,7 @@ def test_get_stores_handles_pagination_and_merges_all_results(monkeypatch):
     assert sleep_calls == [2]
 
 
-def test_regression_filter_keeps_only_closed_temporarily(monkeypatch, tmp_path):
+def test_regression_keeps_all_statuses(monkeypatch, tmp_path):
     monkeypatch.setattr(main, "STORE_CHAINS", ["REWE"])
     monkeypatch.setattr(main, "get_required_env", lambda name: "ok")
     monkeypatch.setattr(main.time, "sleep", lambda _: None)
@@ -100,5 +100,5 @@ def test_regression_filter_keeps_only_closed_temporarily(monkeypatch, tmp_path):
 
     content = output_file.read_text(encoding="utf-8")
     assert "temp-1" in content
-    assert "perm-1" not in content
-    assert "oper-1" not in content
+    assert "perm-1" in content
+    assert "oper-1" in content

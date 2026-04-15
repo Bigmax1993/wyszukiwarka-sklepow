@@ -49,7 +49,7 @@ def test_process_and_export_skips_rows_without_place_id(monkeypatch, tmp_path):
     assert "No Id Store" not in content
 
 
-def test_process_and_export_skips_when_status_missing(monkeypatch, tmp_path):
+def test_process_and_export_sets_unknown_when_status_missing(monkeypatch, tmp_path):
     monkeypatch.setattr(main, "STORE_CHAINS", ["REWE"])
     monkeypatch.setattr(main, "get_required_env", lambda name: "ok")
     monkeypatch.setattr(main.time, "sleep", lambda _: None)
@@ -78,4 +78,5 @@ def test_process_and_export_skips_when_status_missing(monkeypatch, tmp_path):
     output_file = tmp_path / "google_contract_status.csv"
     main.process_and_export(52.52, 13.405, 30000, str(output_file), 0)
     content = output_file.read_text(encoding="utf-8")
-    assert "x1" not in content
+    assert "x1" in content
+    assert "UNKNOWN" in content
